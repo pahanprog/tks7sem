@@ -5,8 +5,17 @@ import cors from "cors";
 import path from "path";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
-import { MyContext } from "./constants";
+import { MyContext } from "./types";
 import { TestResolver } from "./resolvers/TestResolver";
+import User from "./entities/User";
+import Post from "./entities/Post";
+import Redis from "redis"
+import connectRedis from "connect-redis"
+import session from "express-session"
+import { UserResolver } from "./resolvers/User";
+import { PostResolver } from "./resolvers/post";
+import Friends from "./entities/Friends";
+import { FriendsResolver } from "./resolvers/friends";
 
 dotenv.config();
 
@@ -20,7 +29,9 @@ const main = async () => {
             password: "1234",
             database: "SocNet",
             entities: [
-
+                User,
+                Post,
+                Friends
             ],
             migrations: [path.join(__dirname, "./migrations/*")],
             synchronize: true,
@@ -32,7 +43,7 @@ const main = async () => {
     }
 
     const corsOptions = {
-        origin: ["*"],
+        origin: ["http://localhost:3000"],
         credentials: true,
     };
 
@@ -40,17 +51,37 @@ const main = async () => {
     const http = require("http");
     const server = http.createServer(app);
 
+    const RedisStore = connectRedis(session)
+    const redis = Redis.createClient({})
+    app.set("trust proxy", 1);
+
+    app.use(session({
+        name: "qid",
+        store: new RedisStore({
+            client: redis,
+            disableTouch: true
+        }), cookie: {
+            maxAge: 1000 * 60 * 60 * 24,
+        },
+        saveUninitialized: false,
+        secret: "uihgre",
+        resave: false
+    }))
+
     const apolloServer = new ApolloServer({
         introspection: true,
         playground: true,
         schema: await buildSchema({
             resolvers: [
-                TestResolver
+                TestResolver,
+                UserResolver,
+                PostResolver,
+                FriendsResolver
             ],
             validate: false,
         }),
         context: ({ req, res }: MyContext) => {
-            return { req, res };
+            return { req, res, redis };
         },
     });
 

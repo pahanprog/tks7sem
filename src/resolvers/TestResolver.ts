@@ -1,4 +1,4 @@
-import { MyContext } from "src/constants";
+import { MyContext } from "../types";
 import { Ctx, Query, Resolver } from "type-graphql";
 
 @Resolver()
@@ -7,6 +7,7 @@ export class TestResolver {
     async test(
         @Ctx() { req }: MyContext
     ): Promise<String> {
+        req;
         return "Test"
     }
 }
