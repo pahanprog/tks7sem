@@ -29,6 +29,8 @@ const User_1 = __importDefault(require("../entities/User"));
 const type_graphql_1 = require("type-graphql");
 const argon2_1 = __importDefault(require("argon2"));
 const typeorm_1 = require("typeorm");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const isAuth_1 = require("../middleware/isAuth");
 let FieldError = class FieldError {
 };
 __decorate([
@@ -70,19 +72,31 @@ __decorate([
     (0, type_graphql_1.Field)(() => User_1.default, { nullable: true }),
     __metadata("design:type", User_1.default)
 ], UserResponse.prototype, "user", void 0);
+__decorate([
+    (0, type_graphql_1.Field)(() => String, { nullable: true }),
+    __metadata("design:type", String)
+], UserResponse.prototype, "token", void 0);
 UserResponse = __decorate([
     (0, type_graphql_1.ObjectType)()
 ], UserResponse);
 let UserResolver = class UserResolver {
     me({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!req.session.userId) {
+            console.log(req.headers.authorization);
+            if (!req.headers.authorization) {
                 return null;
             }
-            const user = yield (0, typeorm_1.getConnection)().manager.findOne(User_1.default, {
-                where: { id: req.session.userId }
-            });
-            return user;
+            try {
+                const verified = jsonwebtoken_1.default.verify(req.headers.authorization, "1234");
+                const user = yield (0, typeorm_1.getConnection)().manager.findOne(User_1.default, {
+                    where: { id: verified._id }
+                });
+                return user;
+            }
+            catch (err) {
+                console.error(err);
+                return null;
+            }
         });
     }
     register({ req }, input) {
@@ -144,10 +158,8 @@ let UserResolver = class UserResolver {
                     console.error(err);
                 }
             }
-            if (saved) {
-                req.session.userId = saved.id;
-            }
-            return { user: saved };
+            const token = jsonwebtoken_1.default.sign({ _id: saved === null || saved === void 0 ? void 0 : saved.id }, "1234");
+            return { user: saved, token };
         });
     }
     login(usernameOrEmail, password, { req }) {
@@ -173,24 +185,18 @@ let UserResolver = class UserResolver {
                         }]
                 };
             }
-            req.session.userId = user.id;
-            return { user };
+            const token = jsonwebtoken_1.default.sign({ _id: user.id }, "1234");
+            return { user, token };
         });
     }
-    logout({ req, res }) {
+    logout() {
         return __awaiter(this, void 0, void 0, function* () {
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error(err);
-                }
-            });
-            res.clearCookie("qid");
             return true;
         });
     }
     changePfp({ req }, pfp) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             if (!user) {
                 return "";
             }
@@ -201,7 +207,7 @@ let UserResolver = class UserResolver {
     }
     changeInfo({ req }, username, email) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             user.email = email;
             user.username = username;
             user === null || user === void 0 ? void 0 : user.save();
@@ -235,13 +241,13 @@ __decorate([
 ], UserResolver.prototype, "login", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => Boolean),
-    __param(0, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UserResolver.prototype, "logout", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => String),
+    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
     __param(0, (0, type_graphql_1.Ctx)()),
     __param(1, (0, type_graphql_1.Arg)("pfp", () => String)),
     __metadata("design:type", Function),
@@ -250,6 +256,7 @@ __decorate([
 ], UserResolver.prototype, "changePfp", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => User_1.default),
+    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
     __param(0, (0, type_graphql_1.Ctx)()),
     __param(1, (0, type_graphql_1.Arg)("username", () => String)),
     __param(2, (0, type_graphql_1.Arg)("email", () => String)),

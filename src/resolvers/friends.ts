@@ -13,7 +13,7 @@ export class FriendsResolver {
     @UseMiddleware(isAuth)
     async sendFriendRequest(@Arg("id", () => Int) id: number, @Ctx() { req }: MyContext): Promise<boolean> {
 
-        const sender = await User.findOne(req.session.userId, { relations: ["outgoing", "outgoing.recipient"] })
+        const sender = await User.findOne(req.user, { relations: ["outgoing", "outgoing.recipient"] })
         const recipient = await User.findOne(id, { relations: ["incoming", "incoming.sender"] })
 
         if (!sender || !recipient) {
@@ -44,7 +44,7 @@ export class FriendsResolver {
     @Mutation(() => Boolean)
     @UseMiddleware(isAuth)
     async sendFriendResponse(@Arg("id", () => Int) id: number, @Ctx() { req }: MyContext): Promise<boolean> {
-        const recipient = await User.findOne(req.session.userId)
+        const recipient = await User.findOne(req.user)
         const sender = await User.findOne(id)
         const request = await Friends.findOne({ where: { sender, recipient } })
 
@@ -63,7 +63,7 @@ export class FriendsResolver {
     @Query(() => [Friends])
     @UseMiddleware(isAuth)
     async getFriendList(@Ctx() { req }: MyContext) {
-        const user = await User.findOne(req.session.userId);
+        const user = await User.findOne(req.user);
 
         const incoming = await Friends.find({ where: { recipient: user, isMutual: true }, relations: ["sender"] })
 
@@ -77,7 +77,7 @@ export class FriendsResolver {
     @Query(() => [Friends])
     @UseMiddleware(isAuth)
     async getIncomingRequests(@Ctx() { req }: MyContext) {
-        const user = await User.findOne(req.session.userId);
+        const user = await User.findOne(req.user);
 
         const incoming = await Friends.find({ where: { recipient: user, isMutual: false }, relations: ["sender"] })
 
@@ -87,7 +87,7 @@ export class FriendsResolver {
     @Query(() => [Friends])
     @UseMiddleware(isAuth)
     async getOutgoingRequests(@Ctx() { req }: MyContext) {
-        const user = await User.findOne(req.session.userId);
+        const user = await User.findOne(req.user);
 
         const outgoing = await Friends.find({ where: { sender: user, isMutual: false }, relations: ["recipient"] })
 
@@ -98,7 +98,7 @@ export class FriendsResolver {
     @UseMiddleware(isAuth)
     async getAllUsers(@Ctx() { req }: MyContext) {
 
-        const user = await User.findOne(req.session.userId);
+        const user = await User.findOne(req.user);
 
         const friends = await Friends.find({ where: [{ sender: user, isMutual: true }, { recipient: user, isMutual: true }], relations: ["recipient", "sender"] })
 

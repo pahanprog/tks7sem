@@ -41,7 +41,7 @@ export class PostResolver {
         }
         let result = false;
         post.likes.forEach(l => {
-            if (l.id === req.session.userId) {
+            if (l.id === req.user) {
                 result = true
             }
         })
@@ -80,7 +80,7 @@ export class PostResolver {
         } else {
 
 
-            const user = await User.findOne(req.session.userId, { relations: ["posts"] });
+            const user = await User.findOne(req.user, { relations: ["posts"] });
 
             const post = await Post.create({
                 body: input.body,
@@ -113,7 +113,7 @@ export class PostResolver {
             }
         }
 
-        if (post.creator.id !== req.session.userId) {
+        if (post.creator.id !== req.user) {
             return {
                 errors: [{ field: "creator", message: "you are not the creator of this post" }]
             }
@@ -166,7 +166,7 @@ export class PostResolver {
             return false;
         }
 
-        if (post.creator.id !== req.session.userId) {
+        if (post.creator.id !== req.user) {
             return false
         }
 
@@ -178,7 +178,7 @@ export class PostResolver {
     @Mutation(() => Int)
     @UseMiddleware(isAuth)
     async likePost(@Arg("id", () => Int) id: number, @Ctx() { req }: MyContext): Promise<number> {
-        const user = await User.findOne(req.session.userId)
+        const user = await User.findOne(req.user)
         const post = await Post.findOne(id, { relations: ["likes"] })
 
         if (!user || !post) {
@@ -201,7 +201,7 @@ export class PostResolver {
             return -1;
         }
 
-        const filtered = post.likes.filter((i) => { return i.id !== req.session.userId }) as [User]
+        const filtered = post.likes.filter((i) => { return i.id !== req.user }) as [User]
 
         post.likes = filtered;
 
@@ -223,7 +223,7 @@ export class PostResolver {
     @Query(() => [Post])
     @UseMiddleware(isAuth)
     async getFeed(@Ctx() { req }: MyContext): Promise<Post[]> {
-        const user = await User.findOne(req.session.userId)
+        const user = await User.findOne(req.user)
 
         const friends = await Friends.find({ where: [{ sender: user, isMutual: true }, { recipient: user, isMutual: true }], relations: ["recipient", "sender"] })
 

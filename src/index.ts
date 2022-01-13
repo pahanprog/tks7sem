@@ -51,22 +51,7 @@ const main = async () => {
     const http = require("http");
     const server = http.createServer(app);
 
-    const RedisStore = connectRedis(session)
-    const redis = Redis.createClient({})
     app.set("trust proxy", 1);
-
-    app.use(session({
-        name: "qid",
-        store: new RedisStore({
-            client: redis,
-            disableTouch: true
-        }), cookie: {
-            maxAge: 1000 * 60 * 60 * 24,
-        },
-        saveUninitialized: false,
-        secret: "uihgre",
-        resave: false
-    }))
 
     const apolloServer = new ApolloServer({
         introspection: true,
@@ -81,7 +66,7 @@ const main = async () => {
             validate: false,
         }),
         context: ({ req, res }: MyContext) => {
-            return { req, res, redis };
+            return { req, res };
         },
     });
 

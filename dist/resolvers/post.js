@@ -69,7 +69,7 @@ let PostResolver = class PostResolver {
         }
         let result = false;
         post.likes.forEach(l => {
-            if (l.id === req.session.userId) {
+            if (l.id === req.user) {
                 result = true;
             }
         });
@@ -108,7 +108,7 @@ let PostResolver = class PostResolver {
                 };
             }
             else {
-                const user = yield User_2.default.findOne(req.session.userId, { relations: ["posts"] });
+                const user = yield User_2.default.findOne(req.user, { relations: ["posts"] });
                 const post = yield Post_1.default.create({
                     body: input.body,
                     title: input.title,
@@ -132,7 +132,7 @@ let PostResolver = class PostResolver {
                     errors: [{ field: "id", message: "id does not match a post" }]
                 };
             }
-            if (post.creator.id !== req.session.userId) {
+            if (post.creator.id !== req.user) {
                 return {
                     errors: [{ field: "creator", message: "you are not the creator of this post" }]
                 };
@@ -186,7 +186,7 @@ let PostResolver = class PostResolver {
             if (!post) {
                 return false;
             }
-            if (post.creator.id !== req.session.userId) {
+            if (post.creator.id !== req.user) {
                 return false;
             }
             const deleted = yield post.remove();
@@ -195,7 +195,7 @@ let PostResolver = class PostResolver {
     }
     likePost(id, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_2.default.findOne(req.session.userId);
+            const user = yield User_2.default.findOne(req.user);
             const post = yield Post_1.default.findOne(id, { relations: ["likes"] });
             if (!user || !post) {
                 return -1;
@@ -211,7 +211,7 @@ let PostResolver = class PostResolver {
             if (!post) {
                 return -1;
             }
-            const filtered = post.likes.filter((i) => { return i.id !== req.session.userId; });
+            const filtered = post.likes.filter((i) => { return i.id !== req.user; });
             post.likes = filtered;
             post.save();
             return post.likes.length;
@@ -228,7 +228,7 @@ let PostResolver = class PostResolver {
     }
     getFeed({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_2.default.findOne(req.session.userId);
+            const user = yield User_2.default.findOne(req.user);
             const friends = yield Friends_1.default.find({ where: [{ sender: user, isMutual: true }, { recipient: user, isMutual: true }], relations: ["recipient", "sender"] });
             const ids = [];
             ids.push(user.id);

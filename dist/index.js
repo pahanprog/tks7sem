@@ -41,9 +41,6 @@ const type_graphql_1 = require("type-graphql");
 const TestResolver_1 = require("./resolvers/TestResolver");
 const User_1 = __importDefault(require("./entities/User"));
 const Post_1 = __importDefault(require("./entities/Post"));
-const redis_1 = __importDefault(require("redis"));
-const connect_redis_1 = __importDefault(require("connect-redis"));
-const express_session_1 = __importDefault(require("express-session"));
 const User_2 = require("./resolvers/User");
 const post_1 = require("./resolvers/post");
 const Friends_1 = __importDefault(require("./entities/Friends"));
@@ -78,21 +75,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
     const app = (0, express_1.default)();
     const http = require("http");
     const server = http.createServer(app);
-    const RedisStore = (0, connect_redis_1.default)(express_session_1.default);
-    const redis = redis_1.default.createClient({});
     app.set("trust proxy", 1);
-    app.use((0, express_session_1.default)({
-        name: "qid",
-        store: new RedisStore({
-            client: redis,
-            disableTouch: true
-        }), cookie: {
-            maxAge: 1000 * 60 * 60 * 24,
-        },
-        saveUninitialized: false,
-        secret: "uihgre",
-        resave: false
-    }));
     const apolloServer = new apollo_server_express_1.ApolloServer({
         introspection: true,
         playground: true,
@@ -106,7 +89,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             validate: false,
         }),
         context: ({ req, res }) => {
-            return { req, res, redis };
+            return { req, res };
         },
     });
     app.use(express_1.default.json({ limit: "10mb" }));

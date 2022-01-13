@@ -1,8 +1,10 @@
 import User from "../entities/User";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver, UseMiddleware } from "type-graphql";
 import argon2 from "argon2";
 import { MyContext } from "src/types";
 import { getConnection } from "typeorm";
+import jwt from "jsonwebtoken"
+import { isAuth } from "../middleware/isAuth";
 
 @ObjectType()
 export class FieldError {
@@ -33,19 +35,30 @@ class UserResponse {
     @Field(() => User, { nullable: true })
     user?: User
 
+    @Field(() => String, { nullable: true })
+    token?: string
+
 }
 
 @Resolver(() => User)
 export class UserResolver {
     @Query(() => User, { nullable: true })
     async me(@Ctx() { req }: MyContext) {
-        if (!req.session!.userId) {
+        console.log(req.headers.authorization)
+        if (!req.headers.authorization) {
             return null;
         }
-        const user = await getConnection().manager.findOne(User, {
-            where: { id: req.session.userId }
-        })
-        return user;
+        try {
+            const verified = jwt.verify(req.headers.authorization, "1234")
+            const user = await getConnection().manager.findOne(User, {
+                where: { id: verified._id }
+            })
+            return user;
+        } catch (err) {
+            console.error(err)
+            return null
+        }
+
     }
 
     @Mutation(() => UserResponse, { nullable: true })
@@ -116,11 +129,9 @@ export class UserResolver {
             }
         }
 
-        if (saved) {
-            req.session.userId = saved.id
-        }
+        const token = jwt.sign({ _id: saved?.id }, "1234")
 
-        return { user: saved }
+        return { user: saved, token }
     }
 
     @Mutation(() => UserResponse)
@@ -154,27 +165,23 @@ export class UserResolver {
             }
         }
 
-        req.session.userId = user.id;
 
-        return { user };
+        const token = jwt.sign({ _id: user.id }, "1234")
+
+        return { user, token };
     }
 
     @Mutation(() => Boolean)
     async logout(
-        @Ctx() { req, res }: MyContext
     ): Promise<Boolean> {
-        req.session.destroy((err) => {
-            if (err) {
-                console.error(err)
-            }
-        })
-        res.clearCookie("qid");
         return true
     }
 
     @Mutation(() => String)
+    @UseMiddleware(isAuth)
     async changePfp(@Ctx() { req }: MyContext, @Arg("pfp", () => String) pfp: string): Promise<String> {
-        const user = await User.findOne(req.session.userId)
+
+        const user = await User.findOne(req.user)
 
         if (!user) {
             return ""
@@ -187,8 +194,9 @@ export class UserResolver {
     }
 
     @Mutation(() => User)
+    @UseMiddleware(isAuth)
     async changeInfo(@Ctx() { req }: MyContext, @Arg("username", () => String) username: string, @Arg("email", () => String) email: string): Promise<User> {
-        const user = await User.findOne(req.session.userId)
+        const user = await User.findOne(req.user)
 
         user!.email = email;
         user!.username = username;

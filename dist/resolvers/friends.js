@@ -33,7 +33,7 @@ const typeorm_1 = require("typeorm");
 let FriendsResolver = class FriendsResolver {
     sendFriendRequest(id, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const sender = yield User_1.default.findOne(req.session.userId, { relations: ["outgoing", "outgoing.recipient"] });
+            const sender = yield User_1.default.findOne(req.user, { relations: ["outgoing", "outgoing.recipient"] });
             const recipient = yield User_1.default.findOne(id, { relations: ["incoming", "incoming.sender"] });
             if (!sender || !recipient) {
                 return false;
@@ -56,7 +56,7 @@ let FriendsResolver = class FriendsResolver {
     }
     sendFriendResponse(id, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const recipient = yield User_1.default.findOne(req.session.userId);
+            const recipient = yield User_1.default.findOne(req.user);
             const sender = yield User_1.default.findOne(id);
             const request = yield Friends_1.default.findOne({ where: { sender, recipient } });
             console.log(id, recipient, request);
@@ -70,7 +70,7 @@ let FriendsResolver = class FriendsResolver {
     }
     getFriendList({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             const incoming = yield Friends_1.default.find({ where: { recipient: user, isMutual: true }, relations: ["sender"] });
             const outgoing = yield Friends_1.default.find({ where: { sender: user, isMutual: true }, relations: ["recipient"] });
             const friends = incoming.concat(outgoing);
@@ -79,21 +79,21 @@ let FriendsResolver = class FriendsResolver {
     }
     getIncomingRequests({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             const incoming = yield Friends_1.default.find({ where: { recipient: user, isMutual: false }, relations: ["sender"] });
             return incoming;
         });
     }
     getOutgoingRequests({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             const outgoing = yield Friends_1.default.find({ where: { sender: user, isMutual: false }, relations: ["recipient"] });
             return outgoing;
         });
     }
     getAllUsers({ req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const user = yield User_1.default.findOne(req.session.userId);
+            const user = yield User_1.default.findOne(req.user);
             const friends = yield Friends_1.default.find({ where: [{ sender: user, isMutual: true }, { recipient: user, isMutual: true }], relations: ["recipient", "sender"] });
             const ids = [user.id];
             friends.forEach(i => {
